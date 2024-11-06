@@ -1,16 +1,45 @@
 import scrapy
+
+# Import crawler process
 from scrapy.crawler import CrawlerProcess
+import re
+from unidecode import unidecode
+import csv
 
 
 class laprensa_spider(scrapy.Spider):
     name = "laprensa_spider"
+    global news_list
 
-    def __init__(self, pages, news_list):
-        self.pages = pages
-        self.news_list = news_list
+    @staticmethod
+    def clean_text(text):
+        text = text.strip()
+
+        text = text.replace("\n", " ")
+        text = text.replace("\t", " ")
+        text = text.replace("\r", " ")
+        text = "".join(c if c == "ñ" else unidecode(c) for c in text)
+        text = re.sub(
+            r"Siguenos en Facebook:  La Prensa Oficial  y en Twitter:  @laprensaoem.*?$",
+            "",
+            text,
+        )
+
+        text = text.strip()
+        regex = r"Policiaca\s+[A-Za-z¡¿\"]+.+?\s{3,}"
+        text = re.sub(regex, " ", text)
+
+        text = re.sub(r"\s+", " ", text).strip()
+        text = text.lower()
+        return text
+
+    headers = ["url", "date", "article"]
+    with open("text_data.csv", mode="w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
 
     def start_requests(self):
-        urls = self.pages
+        urls = pages
         for url in urls:
             yield scrapy.Request(url=url, callback=self.parse)
 
@@ -27,28 +56,23 @@ class laprensa_spider(scrapy.Spider):
         text = " ".join(text).strip()
         # Construct the new and clean
         article = title + ": " + text
-        article = article.strip()
-        article = article.replace("\n", " ")
 
-        article = article.replace("\r", " ")
-        article = article.replace("\t", " ")
+        article = laprensa_spider.clean_text(article)
 
-        article = article(text)
-        article = article.rstrip(
-            "Síguenos en Facebook:  La Prensa Oficial  y en Twitter:  @laprensaoem"
-        )
-        article = article.strip()
         # date
         date = response.xpath('//p[@class="published-date"]/text()').extract_first()
         date = date.lstrip("\n\xa0 / ")
         date = date.rstrip("\n")
-        new_dictionary = {"url": response.url, "date": date, "article": article}
-        self.news_list.append(new_dictionary)
+
+        # Saving in csv
+        row = [response.url, date, article]
+        with open("text_data.csv", mode="a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(row)
 
 
-# Initializing parameters
 pages = []
-for i in range(2):
+for i in range(100000):
     page = (
         "https://www.la-prensa.com.mx/barebone/wf.template/config.default.master.withoutgroupcount?q=alcald%C3%ADa&section=2403&page="
         + str(i + 1)
@@ -56,14 +80,8 @@ for i in range(2):
     )
     pages.append(page)
 
-news_list = []
+
 # Run the spider
 process = CrawlerProcess()
-process.crawl(laprensa_spider, pages=pages, news_list=news_list)
+process.crawl(laprensa_spider)
 process.start()
-
-# Save the data in a json file
-import json
-
-with open("data.json", "w") as file:
-    json.dump(news_list, file)
