@@ -4,3 +4,9 @@ seaborn
 numpy
 scrapy
 unidecode
+dateparser
+transformers
+torch
+protobuf
+tiktoken
+sentencepiece
