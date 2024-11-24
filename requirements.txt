@@ -11,4 +11,4 @@ protobuf
 tiktoken
 sentencepiece
 openai
-'accelerate>=0.26.0'
+geopy
