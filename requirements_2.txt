@@ -2,3 +2,5 @@ pandas
 geopandas
 shapely
 matplotlib
+seaborn
+statsmodels
